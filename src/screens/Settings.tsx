@@ -1,0 +1,266 @@
+import { useRef, useState } from "react";
+import { useStore } from "../state";
+import { ALBUM_IDS, type AlbumId, type AppState } from "../types";
+import {
+  parseAlbumCsv,
+  exportAlbumCsv,
+  exportStateJson,
+  parseDuplicatesCsv,
+  exportDuplicatesCsv,
+  type ParsedAlbum,
+} from "../lib/csv";
+import { SEED_CSV } from "../lib/seed";
+
+function download(filename: string, text: string, mime = "text/plain") {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export default function Settings() {
+  const { state, importAlbum, setDuplicates, renameAlbum, resetAlbum, replaceState } = useStore();
+
+  function loadBundled() {
+    try {
+      importAlbum("A", parseAlbumCsv(SEED_CSV.A));
+      importAlbum("B", parseAlbumCsv(SEED_CSV.B));
+      setDuplicates(parseDuplicatesCsv(SEED_CSV.duplicates).dupes);
+    } catch {
+      alert("Could not load the bundled data.");
+    }
+  }
+
+  function onDuplicatesFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = parseDuplicatesCsv(String(reader.result));
+        setDuplicates(parsed.dupes);
+        alert(`Imported ${parsed.total} spares (${parsed.distinct} distinct stickers).`);
+      } catch {
+        alert("That duplicates CSV could not be read.");
+      }
+    };
+    reader.readAsText(file);
+  }
+  const [target, setTarget] = useState<AlbumId>("A");
+  const [text, setText] = useState("");
+  const [preview, setPreview] = useState<ParsedAlbum | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  function doParse(raw: string) {
+    setError(null);
+    setPreview(null);
+    try {
+      const parsed = parseAlbumCsv(raw);
+      setPreview(parsed);
+      setText(raw);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not parse that CSV.");
+    }
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => doParse(String(reader.result));
+    reader.readAsText(file);
+  }
+
+  function confirmImport() {
+    if (!preview) return;
+    importAlbum(target, preview);
+    setPreview(null);
+    setText("");
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function onJsonFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(String(reader.result)) as AppState;
+        if (!obj.albums || !obj.sections) throw new Error("bad");
+        replaceState(obj);
+        alert("Backup restored.");
+      } catch {
+        alert("That JSON backup could not be read.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  return (
+    <div className="flex flex-col gap-5 p-4">
+      {/* Quick start */}
+      <section className="rounded-2xl border border-emerald-700/50 bg-emerald-900/20 p-4">
+        <h2 className="mb-1 text-base font-bold">Quick start</h2>
+        <p className="mb-3 text-sm text-slate-300">
+          Load the bundled Arthur &amp; Bernardo albums plus the shared duplicates list. This
+          replaces all current data with the built-in snapshot.
+        </p>
+        <button
+          onClick={() => {
+            if (confirm("Load bundled albums + duplicates? This replaces all current data."))
+              loadBundled();
+          }}
+          className="w-full rounded-lg bg-emerald-600 py-2.5 font-semibold text-white active:bg-emerald-500"
+        >
+          Load bundled albums + duplicates
+        </button>
+      </section>
+
+      {/* Import */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
+        <h2 className="mb-3 text-base font-bold">Import album CSV</h2>
+
+        <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-slate-900 p-1">
+          {ALBUM_IDS.map((id) => (
+            <button
+              key={id}
+              onClick={() => setTarget(id)}
+              className={
+                "rounded-lg py-2 text-sm font-semibold " +
+                (target === id ? "bg-emerald-600 text-white" : "text-slate-300")
+              }
+            >
+              Into {state.albums[id].name}
+            </button>
+          ))}
+        </div>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={onFile}
+          className="mb-3 block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-white"
+        />
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="…or paste CSV text here"
+          rows={4}
+          className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2 font-mono text-xs outline-none focus:border-emerald-500"
+        />
+        <button
+          onClick={() => doParse(text)}
+          disabled={!text.trim()}
+          className="mt-2 w-full rounded-lg bg-slate-700 py-2 text-sm font-semibold disabled:opacity-40"
+        >
+          Preview pasted CSV
+        </button>
+
+        {error && <p className="mt-3 rounded-lg bg-red-500/20 p-2 text-sm text-red-300">{error}</p>}
+
+        {preview && (
+          <div className="mt-3 rounded-lg bg-slate-900 p-3 text-sm">
+            <p className="mb-2 font-semibold text-emerald-400">Preview</p>
+            <p>{preview.sections.length} sections</p>
+            <p>
+              <span className="font-bold text-emerald-400">{preview.counts.have}</span> have ·{" "}
+              <span className="font-bold text-amber-400">{preview.counts.missing}</span> missing ·{" "}
+              {preview.counts.total} total
+            </p>
+            <button
+              onClick={confirmImport}
+              className="mt-3 w-full rounded-lg bg-emerald-600 py-2 font-semibold text-white active:bg-emerald-500"
+            >
+              Import into {state.albums[target].name} (replaces its data)
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Duplicates import */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
+        <h2 className="mb-1 text-base font-bold">Import duplicates CSV</h2>
+        <p className="mb-3 text-sm text-slate-400">
+          One shared spares list for both albums. Cells: empty = none, “X” = 1 spare, a number =
+          that many. Replaces the current duplicates list.
+        </p>
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={onDuplicatesFile}
+          className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-white"
+        />
+      </section>
+
+      {/* Export */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
+        <h2 className="mb-3 text-base font-bold">Backup / export</h2>
+        <div className="flex flex-col gap-2">
+          {ALBUM_IDS.map((id) => (
+            <button
+              key={id}
+              onClick={() =>
+                download(
+                  `${state.albums[id].name.toLowerCase()}.csv`,
+                  exportAlbumCsv(state, id),
+                  "text/csv",
+                )
+              }
+              className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
+            >
+              Export {state.albums[id].name} CSV
+            </button>
+          ))}
+          <button
+            onClick={() => download("duplicates.csv", exportDuplicatesCsv(state), "text/csv")}
+            className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
+          >
+            Export duplicates CSV
+          </button>
+          <button
+            onClick={() =>
+              download("fwc-tracker-backup.json", exportStateJson(state), "application/json")
+            }
+            className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
+          >
+            Export full backup (JSON)
+          </button>
+          <label className="rounded-lg bg-slate-700 py-2 text-center text-sm font-semibold active:bg-slate-600">
+            Restore JSON backup
+            <input type="file" accept=".json,application/json" onChange={onJsonFile} className="hidden" />
+          </label>
+        </div>
+      </section>
+
+      {/* Manage albums */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
+        <h2 className="mb-3 text-base font-bold">Albums</h2>
+        <div className="flex flex-col gap-3">
+          {ALBUM_IDS.map((id) => (
+            <div key={id} className="flex items-center gap-2">
+              <input
+                value={state.albums[id].name}
+                onChange={(e) => renameAlbum(id, e.target.value)}
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              />
+              <button
+                onClick={() => {
+                  if (confirm(`Clear all data for ${state.albums[id].name}?`)) resetAlbum(id);
+                }}
+                className="rounded-lg bg-red-600/80 px-3 py-2 text-sm font-semibold active:bg-red-600"
+              >
+                Reset
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
