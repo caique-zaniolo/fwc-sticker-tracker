@@ -286,7 +286,7 @@ function EmptyState() {
     <div className="flex flex-col items-center gap-3 p-8 text-center text-slate-400">
       <span className="text-5xl">📒</span>
       <h2 className="text-lg font-semibold text-slate-200">No albums loaded yet</h2>
-      <p>Go to the &ldquo;Data&rdquo; tab and import your album CSV files to get started.</p>
+      <p>Go to the &ldquo;Data&rdquo; tab and tap &ldquo;Start fresh&rdquo; or import a CSV.</p>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import {
   exportDuplicatesCsv,
   type ParsedAlbum,
 } from "../lib/csv";
-import { SEED_CSV } from "../lib/seed";
+import { TEMPLATE_CSV } from "../lib/seed";
 
 function download(filename: string, text: string, mime = "text/plain") {
   const blob = new Blob([text], { type: mime });
@@ -24,13 +24,16 @@ function download(filename: string, text: string, mime = "text/plain") {
 export default function Settings() {
   const { state, importAlbum, setDuplicates, renameAlbum, resetAlbum, replaceState } = useStore();
 
-  function loadBundled() {
+  function startFresh() {
+    if (!confirm("Start fresh? This loads a blank album structure and clears all sticker data."))
+      return;
     try {
-      importAlbum("A", parseAlbumCsv(SEED_CSV.A));
-      importAlbum("B", parseAlbumCsv(SEED_CSV.B));
-      setDuplicates(parseDuplicatesCsv(SEED_CSV.duplicates).dupes);
+      const parsed = parseAlbumCsv(TEMPLATE_CSV);
+      importAlbum("A", parsed);
+      importAlbum("B", parsed);
+      setDuplicates({});
     } catch {
-      alert("Could not load the bundled data.");
+      alert("Could not load the album template.");
     }
   }
 
@@ -49,6 +52,7 @@ export default function Settings() {
     };
     reader.readAsText(file);
   }
+
   const [target, setTarget] = useState<AlbumId>("A");
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<ParsedAlbum | null>(null);
@@ -102,25 +106,31 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-5 p-4">
-      {/* Quick start */}
+      {/* Get started */}
       <section className="rounded-2xl border border-emerald-700/50 bg-emerald-900/20 p-4">
-        <h2 className="mb-1 text-base font-bold">Quick start</h2>
-        <p className="mb-3 text-sm text-slate-300">
-          Load the bundled Arthur &amp; Bernardo albums plus the shared duplicates list. This
-          replaces all current data with the built-in snapshot.
-        </p>
+        <h2 className="mb-3 text-base font-bold">Get started</h2>
+        <div className="mb-3 flex flex-col gap-2">
+          {ALBUM_IDS.map((id) => (
+            <div key={id} className="flex items-center gap-2">
+              <span className="w-16 text-sm text-slate-400">Album {id}</span>
+              <input
+                value={state.albums[id].name}
+                onChange={(e) => renameAlbum(id, e.target.value)}
+                placeholder={`Album ${id}`}
+                className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              />
+            </div>
+          ))}
+        </div>
         <button
-          onClick={() => {
-            if (confirm("Load bundled albums + duplicates? This replaces all current data."))
-              loadBundled();
-          }}
+          onClick={startFresh}
           className="w-full rounded-lg bg-emerald-600 py-2.5 font-semibold text-white active:bg-emerald-500"
         >
-          Load bundled albums + duplicates
+          Start fresh (blank albums)
         </button>
       </section>
 
-      {/* Import */}
+      {/* Import album CSV */}
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
         <h2 className="mb-3 text-base font-bold">Import album CSV</h2>
 
@@ -150,7 +160,7 @@ export default function Settings() {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="…or paste CSV text here"
+          placeholder="...or paste CSV text here"
           rows={4}
           className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2 font-mono text-xs outline-none focus:border-emerald-500"
         />
@@ -169,8 +179,8 @@ export default function Settings() {
             <p className="mb-2 font-semibold text-emerald-400">Preview</p>
             <p>{preview.sections.length} sections</p>
             <p>
-              <span className="font-bold text-emerald-400">{preview.counts.have}</span> have ·{" "}
-              <span className="font-bold text-amber-400">{preview.counts.missing}</span> missing ·{" "}
+              <span className="font-bold text-emerald-400">{preview.counts.have}</span> have &middot;{" "}
+              <span className="font-bold text-amber-400">{preview.counts.missing}</span> missing &middot;{" "}
               {preview.counts.total} total
             </p>
             <button
@@ -187,7 +197,7 @@ export default function Settings() {
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
         <h2 className="mb-1 text-base font-bold">Import duplicates CSV</h2>
         <p className="mb-3 text-sm text-slate-400">
-          One shared spares list for both albums. Cells: empty = none, “X” = 1 spare, a number =
+          One shared spares list for both albums. Cells: empty = none, &ldquo;X&rdquo; = 1 spare, a number =
           that many. Replaces the current duplicates list.
         </p>
         <input
@@ -238,26 +248,20 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Manage albums */}
+      {/* Reset albums */}
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
-        <h2 className="mb-3 text-base font-bold">Albums</h2>
-        <div className="flex flex-col gap-3">
+        <h2 className="mb-3 text-base font-bold">Reset sticker data</h2>
+        <div className="flex flex-col gap-2">
           {ALBUM_IDS.map((id) => (
-            <div key={id} className="flex items-center gap-2">
-              <input
-                value={state.albums[id].name}
-                onChange={(e) => renameAlbum(id, e.target.value)}
-                className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-              />
-              <button
-                onClick={() => {
-                  if (confirm(`Clear all data for ${state.albums[id].name}?`)) resetAlbum(id);
-                }}
-                className="rounded-lg bg-red-600/80 px-3 py-2 text-sm font-semibold active:bg-red-600"
-              >
-                Reset
-              </button>
-            </div>
+            <button
+              key={id}
+              onClick={() => {
+                if (confirm(`Clear all sticker data for ${state.albums[id].name}?`)) resetAlbum(id);
+              }}
+              className="rounded-lg bg-red-600/80 py-2 text-sm font-semibold active:bg-red-600"
+            >
+              Reset {state.albums[id].name}
+            </button>
           ))}
         </div>
       </section>

@@ -8,8 +8,8 @@ export function emptyState(): AppState {
     schemaVersion: SCHEMA_VERSION,
     sections: [],
     albums: {
-      A: { name: "Arthur", owned: {} },
-      B: { name: "Bernardo", owned: {} },
+      A: { name: "Album A", owned: {} },
+      B: { name: "Album B", owned: {} },
     },
     duplicates: {},
   };
