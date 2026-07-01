@@ -158,6 +158,7 @@ function StickerCard({
   onNext: () => void;
 }) {
   const { state, isOwned } = useStore();
+  const dupes = state.duplicates[stickerKey(sticker.code, sticker.slot)] ?? 0;
 
   let verdict: { text: string; cls: string };
   if (neededBy.length === ALBUM_IDS.length) {
@@ -186,6 +187,10 @@ function StickerCard({
 
       <div className={`mt-4 rounded-xl px-4 py-2 text-center font-bold ${verdict.cls}`}>
         {verdict.text}
+      </div>
+
+      <div className={`mt-2 rounded-xl px-4 py-2 text-center text-sm font-semibold ${dupes > 0 ? "bg-amber-500/20 text-amber-300" : "bg-slate-700/50 text-slate-400"}`}>
+        {dupes > 0 ? `You have ${dupes} spare${dupes > 1 ? "s" : ""} — can offer` : "No spares"}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
