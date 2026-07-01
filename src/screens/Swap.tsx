@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "../state";
-import { ALBUM_IDS, stickerKey, type AlbumId } from "../types";
-import { resolveLabel, type Sticker } from "../lib/parseLabel";
+import { ALBUM_IDS, stickerKey, type AlbumId, type Section } from "../types";
+import { resolveLabel, splitLabel, type Sticker } from "../lib/parseLabel";
 import { flagFor, nameFor } from "../data/flags";
 
 export default function Swap() {
@@ -18,6 +18,23 @@ export default function Swap() {
 
   // The sticker currently in focus: an explicit pick, else the parsed exact match.
   const current: Sticker | null = picked ?? exact;
+
+  // Country-needs mode: query is a bare section code with no number typed yet.
+  const countryNeeds = useMemo(() => {
+    if (!hasData || picked) return null;
+    const { alpha, num } = splitLabel(query);
+    if (!alpha || num) return null;
+    const sec = state.sections.find((s) => s.code.toLowerCase() === alpha);
+    if (!sec) return null;
+    const items = sec.slots
+      .map((slot) => ({
+        slot,
+        needsA: !isOwned("A", sec.code, slot),
+        needsB: !isOwned("B", sec.code, slot),
+      }))
+      .filter((x) => x.needsA || x.needsB);
+    return { sec, items };
+  }, [query, state.sections, hasData, picked, isOwned]);
 
   function choose(s: Sticker) {
     setPicked(s);
@@ -39,9 +56,7 @@ export default function Swap() {
   }
 
   if (!hasData) {
-    return (
-      <EmptyState />
-    );
+    return <EmptyState />;
   }
 
   const neededBy = current
@@ -87,8 +102,18 @@ export default function Swap() {
         )}
       </div>
 
+      {/* Country-needs panel: bare code typed, no number yet */}
+      {!current && countryNeeds && (
+        <CountryNeedsPanel
+          sec={countryNeeds.sec}
+          items={countryNeeds.items}
+          albumNames={{ A: state.albums.A.name, B: state.albums.B.name }}
+          onChoose={choose}
+        />
+      )}
+
       {/* Suggestions while typing and no concrete sticker chosen yet */}
-      {!current && suggestions.length > 0 && (
+      {!current && !countryNeeds && suggestions.length > 0 && (
         <ul className="flex flex-col gap-1">
           {suggestions.map((s) => (
             <li key={stickerKey(s.code, s.slot)}>
@@ -112,9 +137,9 @@ export default function Swap() {
         <StickerCard sticker={current} neededBy={neededBy} onClaim={claim} onNext={next} />
       )}
 
-      {query.trim() !== "" && !current && suggestions.length === 0 && (
+      {query.trim() !== "" && !current && !countryNeeds && suggestions.length === 0 && (
         <p className="rounded-lg bg-slate-800/60 p-4 text-center text-slate-400">
-          No sticker matches “{query}”.
+          No sticker matches &ldquo;{query}&rdquo;.
         </p>
       )}
     </div>
@@ -179,7 +204,7 @@ function StickerCard({
               }
             >
               <span className="text-sm opacity-80">{state.albums[album].name}</span>
-              <span className="text-lg">{have ? "✓ Have" : "+ Mark have"}</span>
+              <span className="text-lg">{have ? "Have" : "+ Mark have"}</span>
             </button>
           );
         })}
@@ -189,8 +214,69 @@ function StickerCard({
         onClick={onNext}
         className="mt-4 w-full rounded-xl bg-slate-700 py-3 font-semibold active:bg-slate-600"
       >
-        Next sticker →
+        Next sticker
       </button>
+    </div>
+  );
+}
+
+function CountryNeedsPanel({
+  sec,
+  items,
+  albumNames,
+  onChoose,
+}: {
+  sec: Section;
+  items: { slot: string; needsA: boolean; needsB: boolean }[];
+  albumNames: { A: string; B: string };
+  onChoose: (s: Sticker) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="rounded-2xl border border-slate-700 bg-slate-800/70 p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-4xl">{flagFor(sec.code)}</span>
+          <div>
+            <div className="font-bold text-lg">{sec.code}</div>
+            <div className="text-slate-400 text-sm">{nameFor(sec.code)}</div>
+          </div>
+        </div>
+        <p className="text-emerald-400 text-sm font-medium">Both albums complete for this section</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-slate-800/70 p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-4xl">{flagFor(sec.code)}</span>
+        <div>
+          <div className="font-bold text-lg">{sec.code}</div>
+          <div className="text-slate-400 text-sm">{nameFor(sec.code)}</div>
+        </div>
+        <span className="ml-auto text-slate-400 text-sm">{items.length} needed</span>
+      </div>
+      <ul className="flex flex-col gap-1">
+        {items.map(({ slot, needsA, needsB }) => {
+          const label = `${sec.code}${slot === "00" ? "00" : slot}`;
+          const tag = needsA && needsB ? "both" : needsA ? albumNames.A : albumNames.B;
+          const tagCls =
+            needsA && needsB
+              ? "bg-emerald-700 text-emerald-100"
+              : "bg-slate-600 text-slate-200";
+          return (
+            <li key={slot}>
+              <button
+                onClick={() => onChoose({ code: sec.code, slot })}
+                className="flex w-full items-center gap-3 rounded-lg border border-slate-700/50 bg-slate-700/40 px-3 py-2 text-left active:bg-slate-700"
+              >
+                <span className="font-semibold w-16">{label}</span>
+                <span className={`rounded px-2 py-0.5 text-xs font-medium ${tagCls}`}>{tag}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -200,7 +286,7 @@ function EmptyState() {
     <div className="flex flex-col items-center gap-3 p-8 text-center text-slate-400">
       <span className="text-5xl">📒</span>
       <h2 className="text-lg font-semibold text-slate-200">No albums loaded yet</h2>
-      <p>Go to the “Data” tab and import your album CSV files to get started.</p>
+      <p>Go to the &ldquo;Data&rdquo; tab and import your album CSV files to get started.</p>
     </div>
   );
 }
