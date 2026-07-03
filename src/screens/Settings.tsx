@@ -11,6 +11,7 @@ import {
 } from "../lib/csv";
 import { TEMPLATE_CSV } from "../lib/seed";
 import { openPrintView } from "../lib/printMissing";
+import { openDupesPrintView } from "../lib/printDupes";
 
 function download(filename: string, text: string, mime = "text/plain") {
   const blob = new Blob([text], { type: mime });
@@ -218,6 +219,12 @@ export default function Settings() {
             className="rounded-lg bg-slate-600 py-2 text-sm font-semibold active:bg-slate-500"
           >
             Print missing stickers (PDF)
+          </button>
+          <button
+            onClick={() => openDupesPrintView(state)}
+            className="rounded-lg bg-slate-600 py-2 text-sm font-semibold active:bg-slate-500"
+          >
+            Print duplicates list (PDF)
           </button>
           {ALBUM_IDS.map((id) => (
             <button
