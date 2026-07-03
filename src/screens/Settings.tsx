@@ -10,6 +10,7 @@ import {
   type ParsedAlbum,
 } from "../lib/csv";
 import { TEMPLATE_CSV } from "../lib/seed";
+import { openPrintView } from "../lib/printMissing";
 
 function download(filename: string, text: string, mime = "text/plain") {
   const blob = new Blob([text], { type: mime });
@@ -212,6 +213,12 @@ export default function Settings() {
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
         <h2 className="mb-3 text-base font-bold">Backup / export</h2>
         <div className="flex flex-col gap-2">
+          <button
+            onClick={() => openPrintView(state)}
+            className="rounded-lg bg-slate-600 py-2 text-sm font-semibold active:bg-slate-500"
+          >
+            Print missing stickers (PDF)
+          </button>
           {ALBUM_IDS.map((id) => (
             <button
               key={id}
