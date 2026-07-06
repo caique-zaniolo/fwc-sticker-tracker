@@ -1,14 +1,15 @@
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "../state";
-import { stickerKey } from "../types";
+import { stickerKey, type AlbumId } from "../types";
 import { canonSlot, resolveLabel } from "../lib/parseLabel";
 
 export default function Duplicates() {
-  const { state, hasData, adjustDuplicate } = useStore();
+  const { state, hasData, adjustDuplicate, setOwned } = useStore();
   const [query, setQuery] = useState("");
   const [activeAdd, setActiveAdd] = useState<string | null>(null);
   const [slotInput, setSlotInput] = useState("");
   const slotRef = useRef<HTMLInputElement>(null);
+  const [showAudit, setShowAudit] = useState(false);
 
   const { exact, suggestions } = useMemo(
     () => (hasData ? resolveLabel(query, state.sections) : { exact: null, suggestions: [] }),
@@ -26,12 +27,33 @@ export default function Duplicates() {
       .filter((g) => g.items.length > 0);
   }, [state.sections, state.duplicates]);
 
+  const issues = useMemo(() => {
+    const result: {
+      key: string;
+      flag: string;
+      code: string;
+      slot: string;
+      missingA: boolean;
+      missingB: boolean;
+    }[] = [];
+    for (const sec of state.sections) {
+      for (const slot of sec.slots) {
+        const key = stickerKey(sec.code, slot);
+        if ((state.duplicates[key] ?? 0) === 0) continue;
+        const missingA = !state.albums["A"].owned[key];
+        const missingB = !state.albums["B"].owned[key];
+        if (missingA || missingB) result.push({ key, flag: sec.flag, code: sec.code, slot, missingA, missingB });
+      }
+    }
+    return result;
+  }, [state.sections, state.duplicates, state.albums]);
+
   // Derive totals from section-valid slots only, so stray keys can't inflate counts.
   const totalSpares = groups.reduce((a, g) => a + g.items.reduce((x, i) => x + i.n, 0), 0);
   const distinct = groups.reduce((a, g) => a + g.items.length, 0);
 
   if (!hasData)
-    return <p className="p-8 text-center text-slate-400">Import your albums in the “Data” tab first.</p>;
+    return <p className="p-8 text-center text-slate-400">Import your albums in the "Data" tab first.</p>;
 
   function addOne() {
     const pick = exact ?? suggestions[0];
@@ -56,6 +78,12 @@ export default function Duplicates() {
       setTimeout(() => slotRef.current?.focus(), 0);
     }
   }
+
+  function markOwned(key: string, album: AlbumId) {
+    setOwned(album, key, true);
+  }
+
+  const albumName = (id: AlbumId) => state.albums[id].name || `Album ${id}`;
 
   return (
     <div className="flex flex-col gap-3 p-3">
@@ -85,9 +113,82 @@ export default function Duplicates() {
         </button>
       </div>
 
+      {/* Album audit */}
+      <div className="rounded-xl border border-slate-700 bg-slate-800/50">
+        <button
+          onClick={() => setShowAudit((v) => !v)}
+          className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold"
+        >
+          <span>Album check</span>
+          {issues.length > 0 ? (
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-black">
+              {issues.length}
+            </span>
+          ) : (
+            <span className="rounded-full bg-emerald-700 px-2 py-0.5 text-xs font-bold text-emerald-200">
+              OK
+            </span>
+          )}
+          <span className="ml-auto text-slate-500">{showAudit ? "▲" : "▼"}</span>
+        </button>
+
+        {showAudit && (
+          <div className="border-t border-slate-700 px-4 py-3">
+            {issues.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                All spares are owned in both albums.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-slate-400">
+                  These stickers are in your spares list but not marked as owned in one or both albums.
+                </p>
+                {issues.map(({ key, flag, code, slot, missingA, missingB }) => (
+                  <div
+                    key={key}
+                    className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-900 px-3 py-2"
+                  >
+                    <span className="text-lg">{flag}</span>
+                    <span className="font-bold tabular-nums">
+                      {code}{slot}
+                    </span>
+                    <span className="text-xs text-amber-400">
+                      missing from{" "}
+                      {missingA && missingB
+                        ? "both albums"
+                        : missingA
+                          ? albumName("A")
+                          : albumName("B")}
+                    </span>
+                    <div className="ml-auto flex gap-1">
+                      {missingA && (
+                        <button
+                          onClick={() => markOwned(key, "A")}
+                          className="rounded-md bg-emerald-700 px-2 py-1 text-xs font-bold text-white active:bg-emerald-600"
+                        >
+                          + {albumName("A")}
+                        </button>
+                      )}
+                      {missingB && (
+                        <button
+                          onClick={() => markOwned(key, "B")}
+                          className="rounded-md bg-emerald-700 px-2 py-1 text-xs font-bold text-white active:bg-emerald-600"
+                        >
+                          + {albumName("B")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {groups.length === 0 && (
         <p className="rounded-xl bg-slate-800/60 p-6 text-center text-slate-400">
-          No duplicates yet. Add spares above, or import a duplicates CSV in the “Data” tab.
+          No duplicates yet. Add spares above, or import a duplicates CSV in the "Data" tab.
         </p>
       )}
 
