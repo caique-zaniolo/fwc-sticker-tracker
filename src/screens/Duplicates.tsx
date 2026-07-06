@@ -1,11 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useStore } from "../state";
 import { stickerKey } from "../types";
-import { resolveLabel } from "../lib/parseLabel";
+import { canonSlot, resolveLabel } from "../lib/parseLabel";
 
 export default function Duplicates() {
   const { state, hasData, adjustDuplicate } = useStore();
   const [query, setQuery] = useState("");
+  const [activeAdd, setActiveAdd] = useState<string | null>(null);
+  const [slotInput, setSlotInput] = useState("");
+  const slotRef = useRef<HTMLInputElement>(null);
 
   const { exact, suggestions } = useMemo(
     () => (hasData ? resolveLabel(query, state.sections) : { exact: null, suggestions: [] }),
@@ -35,6 +38,22 @@ export default function Duplicates() {
     if (pick) {
       adjustDuplicate(stickerKey(pick.code, pick.slot), 1);
       setQuery("");
+    }
+  }
+
+  function openInlineAdd(code: string) {
+    setActiveAdd(code);
+    setSlotInput("");
+    setTimeout(() => slotRef.current?.focus(), 0);
+  }
+
+  function submitInlineAdd(slots: string[], code: string) {
+    const canon = canonSlot(slotInput);
+    const real = slots.find((s) => canonSlot(s) === canon);
+    if (real) {
+      adjustDuplicate(stickerKey(code, real), 1);
+      setSlotInput("");
+      setTimeout(() => slotRef.current?.focus(), 0);
     }
   }
 
@@ -82,6 +101,41 @@ export default function Duplicates() {
               <span className="ml-auto text-xs text-slate-500">
                 {items.reduce((a, b) => a + b.n, 0)} spares
               </span>
+              {activeAdd === sec.code ? (
+                <>
+                  <span className="text-xs font-bold text-slate-400">{sec.code}</span>
+                  <input
+                    ref={slotRef}
+                    value={slotInput}
+                    onChange={(e) => setSlotInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitInlineAdd(sec.slots, sec.code);
+                      if (e.key === "Escape") setActiveAdd(null);
+                    }}
+                    placeholder="8"
+                    className="w-12 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-center text-sm outline-none focus:border-sky-500"
+                  />
+                  <button
+                    onClick={() => submitInlineAdd(sec.slots, sec.code)}
+                    className="rounded-md bg-sky-600 px-2 py-1 text-xs font-bold text-white active:bg-sky-500"
+                  >
+                    +
+                  </button>
+                  <button
+                    onClick={() => setActiveAdd(null)}
+                    className="rounded-md bg-slate-700 px-2 py-1 text-xs text-slate-300 active:bg-slate-600"
+                  >
+                    ✕
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => openInlineAdd(sec.code)}
+                  className="rounded-lg bg-sky-600/20 px-2 py-1 text-xs font-bold text-sky-400 active:bg-sky-600/40"
+                >
+                  + Add
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               {items.map(({ slot, n }) => {
