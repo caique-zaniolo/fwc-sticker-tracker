@@ -1,27 +1,43 @@
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "../state";
 import { ALBUM_IDS, stickerKey, type AlbumId, type Section } from "../types";
-import { resolveLabel, splitLabel, type Sticker } from "../lib/parseLabel";
+import { canonSlot, resolveLabel, splitLabel, type Sticker } from "../lib/parseLabel";
 import { flagFor, nameFor } from "../data/flags";
+import AlbumToggle from "../components/AlbumToggle";
+
+type Mode = "lookup" | "share" | "offer";
 
 export default function Swap() {
   const { state, hasData, isOwned, setOwned } = useStore();
+  const [mode, setMode] = useState<Mode>("lookup");
+
+  // Lookup state
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Sticker | null>(null);
   const [claimed, setClaimed] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Share state
+  const [shareAlbum, setShareAlbum] = useState<AlbumId>("A");
+  const [copied, setCopied] = useState(false);
+
+  // Offer state
+  const [offerText, setOfferText] = useState("");
+
+  // ── Lookup ──────────────────────────────────────────────────────────────────
+
   const { exact, suggestions } = useMemo(
-    () => (hasData ? resolveLabel(query, state.sections) : { exact: null, suggestions: [] }),
-    [query, state.sections, hasData],
+    () =>
+      hasData && mode === "lookup"
+        ? resolveLabel(query, state.sections)
+        : { exact: null, suggestions: [] },
+    [query, state.sections, hasData, mode],
   );
 
-  // The sticker currently in focus: an explicit pick, else the parsed exact match.
   const current: Sticker | null = picked ?? exact;
 
-  // Country-needs mode: query is a bare section code with no number typed yet.
   const countryNeeds = useMemo(() => {
-    if (!hasData || picked) return null;
+    if (!hasData || picked || mode !== "lookup") return null;
     const { alpha, num } = splitLabel(query);
     if (!alpha || num) return null;
     const sec = state.sections.find((s) => s.code.toLowerCase() === alpha);
@@ -34,7 +50,7 @@ export default function Swap() {
       }))
       .filter((x) => x.needsA || x.needsB);
     return { sec, items };
-  }, [query, state.sections, hasData, picked, isOwned]);
+  }, [query, state.sections, hasData, picked, isOwned, mode]);
 
   function choose(s: Sticker) {
     setPicked(s);
@@ -55,9 +71,61 @@ export default function Swap() {
     }
   }
 
-  if (!hasData) {
-    return <EmptyState />;
+  // ── Share ───────────────────────────────────────────────────────────────────
+
+  const shareMessage = useMemo(() => {
+    if (!hasData) return "";
+    const groups = state.sections
+      .map((sec) => ({
+        sec,
+        missing: sec.slots.filter((slot) => !isOwned(shareAlbum, sec.code, slot)),
+      }))
+      .filter((g) => g.missing.length > 0);
+    const lines = groups.map(({ sec, missing }) => `${sec.code} ${sec.flag}: ${missing.join(", ")}`);
+    return ["Figurinhas Faltantes", "--------------------", ...lines].join("\n");
+  }, [state.sections, shareAlbum, hasData, isOwned]);
+
+  function copyMessage() {
+    navigator.clipboard.writeText(shareMessage).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
+
+  // ── Offer ───────────────────────────────────────────────────────────────────
+
+  const offerResults = useMemo(() => {
+    if (!offerText.trim() || !hasData) return null;
+    const byCode: Record<string, string[]> = {};
+    for (const line of offerText.split("\n")) {
+      // Match lines like: CODE [optional flag/text]: slot1, slot2, ...
+      const m = line.match(/^([A-Z]{2,4})\b[^:]*:\s*(.+)$/);
+      if (!m) continue;
+      const rawSlots = m[2].split(",").map((s) => s.trim()).filter(Boolean);
+      if (rawSlots.length > 0) byCode[m[1]] = rawSlots;
+    }
+    return Object.entries(byCode).flatMap(([code, rawSlots]) => {
+      const sec = state.sections.find((s) => s.code === code);
+      if (!sec) return [];
+      const canOffer: { slot: string; count: number }[] = [];
+      const cantOffer: string[] = [];
+      for (const raw of rawSlots) {
+        const realSlot = sec.slots.find((s) => canonSlot(s) === canonSlot(raw));
+        if (!realSlot) continue;
+        const n = state.duplicates[stickerKey(code, realSlot)] ?? 0;
+        if (n > 0) canOffer.push({ slot: realSlot, count: n });
+        else cantOffer.push(realSlot);
+      }
+      if (canOffer.length === 0 && cantOffer.length === 0) return [];
+      return [{ sec, canOffer, cantOffer }];
+    });
+  }, [offerText, state.sections, state.duplicates, hasData]);
+
+  const totalCanOffer = offerResults?.reduce((n, g) => n + g.canOffer.length, 0) ?? 0;
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  if (!hasData) return <EmptyState />;
 
   const neededBy = current
     ? ALBUM_IDS.filter((a) => !isOwned(a, current.code, current.slot))
@@ -65,82 +133,198 @@ export default function Swap() {
 
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="sticky top-0 -mx-4 -mt-4 bg-slate-900/95 px-4 pt-4 pb-3 backdrop-blur">
-        <label className="mb-1 block text-xs font-medium text-slate-400">
-          Type the sticker label (e.g. MEX8, FWC00)
-        </label>
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPicked(null);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                if (exact) choose(exact);
-                else if (suggestions[0]) choose(suggestions[0]);
-              }
-            }}
-            autoFocus
-            autoCapitalize="characters"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="MEX8"
-            className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-lg uppercase tracking-wide outline-none focus:border-emerald-500"
-          />
+      {/* Mode tabs */}
+      <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-800 p-1">
+        {(["lookup", "share", "offer"] as Mode[]).map((m) => (
           <button
-            onClick={next}
-            className="rounded-xl bg-slate-700 px-4 py-3 text-sm font-semibold active:bg-slate-600"
+            key={m}
+            onClick={() => setMode(m)}
+            className={
+              "rounded-lg py-2 text-xs font-semibold transition " +
+              (mode === m ? "bg-sky-600 text-white" : "text-slate-300 active:bg-slate-700")
+            }
           >
-            Clear
+            {m === "lookup" ? "Look up" : m === "share" ? "Share missing" : "Can I offer?"}
           </button>
-        </div>
-        {claimed > 0 && (
-          <p className="mt-2 text-xs text-emerald-400">{claimed} claimed this session</p>
-        )}
+        ))}
       </div>
 
-      {/* Country-needs panel: bare code typed, no number yet */}
-      {!current && countryNeeds && (
-        <CountryNeedsPanel
-          sec={countryNeeds.sec}
-          items={countryNeeds.items}
-          albumNames={{ A: state.albums.A.name, B: state.albums.B.name }}
-          onChoose={choose}
-        />
-      )}
-
-      {/* Suggestions while typing and no concrete sticker chosen yet */}
-      {!current && !countryNeeds && suggestions.length > 0 && (
-        <ul className="flex flex-col gap-1">
-          {suggestions.map((s) => (
-            <li key={stickerKey(s.code, s.slot)}>
+      {/* ── Look up ── */}
+      {mode === "lookup" && (
+        <>
+          <div className="sticky top-0 -mx-4 -mt-4 bg-slate-900/95 px-4 pt-4 pb-3 backdrop-blur">
+            <label className="mb-1 block text-xs font-medium text-slate-400">
+              Type the sticker label (e.g. MEX8, FWC00)
+            </label>
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPicked(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    if (exact) choose(exact);
+                    else if (suggestions[0]) choose(suggestions[0]);
+                  }
+                }}
+                autoFocus
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="MEX8"
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-lg uppercase tracking-wide outline-none focus:border-emerald-500"
+              />
               <button
-                onClick={() => choose(s)}
-                className="flex w-full items-center gap-3 rounded-lg border border-slate-800 bg-slate-800/60 px-3 py-2 text-left active:bg-slate-700"
+                onClick={next}
+                className="rounded-xl bg-slate-700 px-4 py-3 text-sm font-semibold active:bg-slate-600"
               >
-                <span className="text-2xl">{flagFor(s.code)}</span>
-                <span className="font-semibold">
-                  {s.code}
-                  {s.slot === "00" ? "00" : s.slot}
-                </span>
-                <span className="text-slate-400">{nameFor(s.code)}</span>
+                Clear
               </button>
-            </li>
-          ))}
-        </ul>
+            </div>
+            {claimed > 0 && (
+              <p className="mt-2 text-xs text-emerald-400">{claimed} claimed this session</p>
+            )}
+          </div>
+
+          {!current && countryNeeds && (
+            <CountryNeedsPanel
+              sec={countryNeeds.sec}
+              items={countryNeeds.items}
+              albumNames={{ A: state.albums.A.name, B: state.albums.B.name }}
+              onChoose={choose}
+            />
+          )}
+
+          {!current && !countryNeeds && suggestions.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {suggestions.map((s) => (
+                <li key={stickerKey(s.code, s.slot)}>
+                  <button
+                    onClick={() => choose(s)}
+                    className="flex w-full items-center gap-3 rounded-lg border border-slate-800 bg-slate-800/60 px-3 py-2 text-left active:bg-slate-700"
+                  >
+                    <span className="text-2xl">{flagFor(s.code)}</span>
+                    <span className="font-semibold">
+                      {s.code}
+                      {s.slot === "00" ? "00" : s.slot}
+                    </span>
+                    <span className="text-slate-400">{nameFor(s.code)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {current && (
+            <StickerCard sticker={current} neededBy={neededBy} onClaim={claim} onNext={next} />
+          )}
+
+          {query.trim() !== "" && !current && !countryNeeds && suggestions.length === 0 && (
+            <p className="rounded-lg bg-slate-800/60 p-4 text-center text-slate-400">
+              No sticker matches &ldquo;{query}&rdquo;.
+            </p>
+          )}
+        </>
       )}
 
-      {current && (
-        <StickerCard sticker={current} neededBy={neededBy} onClaim={claim} onNext={next} />
+      {/* ── Share missing ── */}
+      {mode === "share" && (
+        <div className="flex flex-col gap-3">
+          <AlbumToggle album={shareAlbum} onChange={setShareAlbum} />
+          <button
+            onClick={copyMessage}
+            className={
+              "rounded-xl px-4 py-3 font-bold transition " +
+              (copied
+                ? "bg-emerald-700 text-emerald-200"
+                : "bg-sky-600 text-white active:bg-sky-500")
+            }
+          >
+            {copied ? "Copied!" : "Copy message"}
+          </button>
+          <textarea
+            readOnly
+            value={shareMessage}
+            rows={16}
+            className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 font-mono text-xs text-slate-300 outline-none"
+          />
+        </div>
       )}
 
-      {query.trim() !== "" && !current && !countryNeeds && suggestions.length === 0 && (
-        <p className="rounded-lg bg-slate-800/60 p-4 text-center text-slate-400">
-          No sticker matches &ldquo;{query}&rdquo;.
-        </p>
+      {/* ── Can I offer? ── */}
+      {mode === "offer" && (
+        <div className="flex flex-col gap-3">
+          <textarea
+            value={offerText}
+            onChange={(e) => setOfferText(e.target.value)}
+            rows={6}
+            placeholder={"Paste a friend's missing list here…\n\nFWC 🏆: 1, 3, 5\nMEX 🇲🇽: 2, 8, 12"}
+            className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-slate-200 outline-none focus:border-sky-500"
+          />
+
+          {offerResults === null && (
+            <p className="text-center text-sm text-slate-500">
+              Paste a "Figurinhas Faltantes" message above to see what you can offer.
+            </p>
+          )}
+
+          {offerResults !== null && (
+            <>
+              <div className="rounded-xl bg-slate-800/70 px-4 py-2 text-sm">
+                {totalCanOffer > 0 ? (
+                  <>
+                    <span className="font-bold text-emerald-400">{totalCanOffer}</span>
+                    <span className="text-slate-300"> stickers you can offer</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400">No spares match their missing list.</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {offerResults.map(({ sec, canOffer, cantOffer }) => (
+                  <div
+                    key={sec.code}
+                    className="rounded-xl border border-slate-800 bg-slate-800/50 p-3"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-xl">{sec.flag}</span>
+                      <span className="font-bold">{sec.code}</span>
+                      <span className="text-sm text-slate-400">{sec.name}</span>
+                      {canOffer.length > 0 && (
+                        <span className="ml-auto rounded-full bg-emerald-700/50 px-2 py-0.5 text-xs font-bold text-emerald-300">
+                          {canOffer.length} can offer
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {canOffer.map(({ slot, count }) => (
+                        <span
+                          key={slot}
+                          className="rounded bg-emerald-600/25 px-2 py-1 text-xs font-semibold text-emerald-300 tabular-nums"
+                        >
+                          {sec.code}{slot}
+                          {count > 1 && <span className="ml-1 opacity-70">×{count}</span>}
+                        </span>
+                      ))}
+                      {cantOffer.map((slot) => (
+                        <span
+                          key={slot}
+                          className="rounded bg-slate-700/50 px-2 py-1 text-xs font-semibold text-slate-500 tabular-nums"
+                        >
+                          {sec.code}{slot}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
