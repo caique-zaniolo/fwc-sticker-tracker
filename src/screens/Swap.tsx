@@ -3,7 +3,6 @@ import { useStore } from "../state";
 import { ALBUM_IDS, stickerKey, type AlbumId, type Section } from "../types";
 import { canonSlot, resolveLabel, splitLabel, type Sticker } from "../lib/parseLabel";
 import { flagFor, nameFor } from "../data/flags";
-import AlbumToggle from "../components/AlbumToggle";
 
 type Mode = "lookup" | "share" | "offer";
 
@@ -18,7 +17,7 @@ export default function Swap() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Share state
-  const [shareAlbum, setShareAlbum] = useState<AlbumId>("A");
+  const [shareAlbum, setShareAlbum] = useState<AlbumId | "both">("A");
   const [copied, setCopied] = useState(false);
 
   // Offer state
@@ -75,10 +74,14 @@ export default function Swap() {
 
   const shareMessage = useMemo(() => {
     if (!hasData) return "";
+    const isMissing = (code: string, slot: string) =>
+      shareAlbum === "both"
+        ? !isOwned("A", code, slot) || !isOwned("B", code, slot)
+        : !isOwned(shareAlbum, code, slot);
     const groups = state.sections
       .map((sec) => ({
         sec,
-        missing: sec.slots.filter((slot) => !isOwned(shareAlbum, sec.code, slot)),
+        missing: sec.slots.filter((slot) => isMissing(sec.code, slot)),
       }))
       .filter((g) => g.missing.length > 0);
     const lines = groups.map(({ sec, missing }) => `${sec.code} ${sec.flag}: ${missing.join(", ")}`);
@@ -233,7 +236,20 @@ export default function Swap() {
       {/* ── Share missing ── */}
       {mode === "share" && (
         <div className="flex flex-col gap-3">
-          <AlbumToggle album={shareAlbum} onChange={setShareAlbum} />
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-800 p-1">
+            {(["A", "B", "both"] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setShareAlbum(opt)}
+                className={
+                  "rounded-lg py-2 text-xs font-semibold transition " +
+                  (shareAlbum === opt ? "bg-emerald-600 text-white" : "text-slate-300 active:bg-slate-700")
+                }
+              >
+                {opt === "both" ? "Both" : state.albums[opt].name}
+              </button>
+            ))}
+          </div>
           <button
             onClick={copyMessage}
             className={
