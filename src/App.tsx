@@ -5,17 +5,17 @@ import AlbumGrid from "./screens/AlbumGrid";
 import Duplicates from "./screens/Duplicates";
 import Settings from "./screens/Settings";
 
-type Tab = "swap" | "albums" | "dupes" | "data";
+type Tab = "albums" | "swap" | "dupes" | "data";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "swap", label: "Swap", icon: "🔄" },
   { id: "albums", label: "Albums", icon: "📒" },
-  { id: "dupes", label: "Dupes", icon: "🃏" },
+  { id: "swap", label: "Swap", icon: "🔄" },
+  { id: "dupes", label: "Spares", icon: "🃏" },
   { id: "data", label: "Data", icon: "⚙️" },
 ];
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>("swap");
+  const [tab, setTab] = useState<Tab>("albums");
 
   return (
     <StoreProvider>
