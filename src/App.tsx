@@ -8,9 +8,9 @@ import Settings from "./screens/Settings";
 type Tab = "albums" | "swap" | "dupes" | "data";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: "albums", label: "Albums", icon: "📒" },
+  { id: "albums", label: "Albums", icon: "📔" },
   { id: "swap", label: "Swap", icon: "🔄" },
-  { id: "dupes", label: "Spares", icon: "🃏" },
+  { id: "dupes", label: "Spares", icon: "📦" },
   { id: "data", label: "Data", icon: "⚙️" },
 ];
 

@@ -199,12 +199,14 @@ export default function Duplicates() {
               <span className="text-2xl">{sec.flag}</span>
               <span className="font-bold">{sec.code}</span>
               <span className="text-sm text-slate-400">{sec.name}</span>
-              <span className="ml-auto text-xs text-slate-500">
-                {items.reduce((a, b) => a + b.n, 0)} spares
-              </span>
+              {activeAdd !== sec.code && (
+                <span className="ml-auto text-xs text-slate-500">
+                  {items.reduce((a, b) => a + b.n, 0)} spares
+                </span>
+              )}
               {activeAdd === sec.code ? (
                 <>
-                  <span className="text-xs font-bold text-slate-400">{sec.code}</span>
+                  <span className="ml-auto text-sm font-bold text-slate-400">{sec.code}</span>
                   <input
                     ref={slotRef}
                     value={slotInput}
@@ -214,17 +216,17 @@ export default function Duplicates() {
                       if (e.key === "Escape") setActiveAdd(null);
                     }}
                     placeholder="8"
-                    className="w-12 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-center text-sm outline-none focus:border-sky-500"
+                    className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-2 text-center text-base outline-none focus:border-sky-500"
                   />
                   <button
                     onClick={() => submitInlineAdd(sec.slots, sec.code)}
-                    className="rounded-md bg-sky-600 px-2 py-1 text-xs font-bold text-white active:bg-sky-500"
+                    className="h-10 w-10 rounded-lg bg-sky-600 text-lg font-bold text-white active:bg-sky-500"
                   >
                     +
                   </button>
                   <button
                     onClick={() => setActiveAdd(null)}
-                    className="rounded-md bg-slate-700 px-2 py-1 text-xs text-slate-300 active:bg-slate-600"
+                    className="h-10 w-10 rounded-lg bg-slate-700 text-base text-slate-300 active:bg-slate-600"
                   >
                     ✕
                   </button>
@@ -232,7 +234,7 @@ export default function Duplicates() {
               ) : (
                 <button
                   onClick={() => openInlineAdd(sec.code)}
-                  className="rounded-lg bg-sky-600/20 px-2 py-1 text-xs font-bold text-sky-400 active:bg-sky-600/40"
+                  className="rounded-lg bg-sky-600/20 px-3 py-2 text-sm font-bold text-sky-400 active:bg-sky-600/40"
                 >
                   + Add
                 </button>
