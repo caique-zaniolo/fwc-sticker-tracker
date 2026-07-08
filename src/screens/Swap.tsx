@@ -4,7 +4,7 @@ import { ALBUM_IDS, stickerKey, type AlbumId, type Section } from "../types";
 import { canonSlot, resolveLabel, splitLabel, type Sticker } from "../lib/parseLabel";
 import { flagFor, nameFor } from "../data/flags";
 
-type Mode = "lookup" | "share" | "offer";
+type Mode = "lookup" | "share" | "offer" | "receive";
 
 export default function Swap() {
   const { state, hasData, isOwned, setOwned } = useStore();
@@ -22,6 +22,9 @@ export default function Swap() {
 
   // Offer state
   const [offerText, setOfferText] = useState("");
+
+  // Receive state
+  const [receiveText, setReceiveText] = useState("");
 
   // ── Lookup ──────────────────────────────────────────────────────────────────
 
@@ -150,6 +153,35 @@ export default function Swap() {
     });
   }
 
+  // ── Receive ─────────────────────────────────────────────────────────────────
+
+  const receiveResults = useMemo(() => {
+    if (!receiveText.trim() || !hasData) return null;
+    const byCode: Record<string, string[]> = {};
+    for (const line of receiveText.split("\n")) {
+      const m = line.match(/^([A-Z]{2,4})\b[^:]*:\s*(.+)$/);
+      if (!m) continue;
+      const rawSlots = m[2].split(",").map((s) => s.trim()).filter(Boolean);
+      if (rawSlots.length > 0) byCode[m[1]] = rawSlots;
+    }
+    return Object.entries(byCode).flatMap(([code, rawSlots]) => {
+      const sec = state.sections.find((s) => s.code === code);
+      if (!sec) return [];
+      const needed: { slot: string; needsA: boolean; needsB: boolean }[] = [];
+      for (const raw of rawSlots) {
+        const realSlot = sec.slots.find((s) => canonSlot(s) === canonSlot(raw));
+        if (!realSlot) continue;
+        const needsA = !isOwned("A", code, realSlot);
+        const needsB = !isOwned("B", code, realSlot);
+        if (needsA || needsB) needed.push({ slot: realSlot, needsA, needsB });
+      }
+      if (needed.length === 0) return [];
+      return [{ sec, needed }];
+    });
+  }, [receiveText, state.sections, hasData, isOwned]);
+
+  const totalReceive = receiveResults?.reduce((n, g) => n + g.needed.length, 0) ?? 0;
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   if (!hasData) return <EmptyState />;
@@ -161,8 +193,8 @@ export default function Swap() {
   return (
     <div className="flex flex-col gap-4 p-4">
       {/* Mode tabs */}
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-800 p-1">
-        {(["lookup", "share", "offer"] as Mode[]).map((m) => (
+      <div className="grid grid-cols-4 gap-1 rounded-xl bg-slate-800 p-1">
+        {(["lookup", "share", "offer", "receive"] as Mode[]).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
@@ -171,7 +203,13 @@ export default function Swap() {
               (mode === m ? "bg-sky-600 text-white" : "text-slate-300 active:bg-slate-700")
             }
           >
-            {m === "lookup" ? "Look up" : m === "share" ? "Share missing" : "Can I offer?"}
+            {m === "lookup"
+              ? "Look up"
+              : m === "share"
+                ? "Share"
+                : m === "offer"
+                  ? "Can offer"
+                  : "Their spares"}
           </button>
         ))}
       </div>
@@ -197,7 +235,6 @@ export default function Swap() {
                     else if (suggestions[0]) choose(suggestions[0]);
                   }
                 }}
-                autoFocus
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
@@ -369,6 +406,77 @@ export default function Swap() {
                           {sec.code}{slot}
                         </span>
                       ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Their spares ── */}
+      {mode === "receive" && (
+        <div className="flex flex-col gap-3">
+          <textarea
+            value={receiveText}
+            onChange={(e) => setReceiveText(e.target.value)}
+            rows={6}
+            placeholder={"Paste a friend's spares list here…\n\nFWC 🏆: 3, 7, 12\nMEX 🇲🇽: 5, 9, 14"}
+            className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-slate-200 outline-none focus:border-sky-500"
+          />
+
+          {receiveResults === null && (
+            <p className="text-center text-sm text-slate-500">
+              Paste a "Figurinhas Repetidas" message above to see what you need from them.
+            </p>
+          )}
+
+          {receiveResults !== null && (
+            <>
+              <div className="rounded-xl bg-slate-800/70 px-4 py-2 text-sm">
+                {totalReceive > 0 ? (
+                  <>
+                    <span className="font-bold text-emerald-400">{totalReceive}</span>
+                    <span className="text-slate-300"> stickers you can request</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400">Nothing from their spares matches what you need.</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {receiveResults.map(({ sec, needed }) => (
+                  <div
+                    key={sec.code}
+                    className="rounded-xl border border-slate-800 bg-slate-800/50 p-3"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-xl">{sec.flag}</span>
+                      <span className="font-bold">{sec.code}</span>
+                      <span className="text-sm text-slate-400">{sec.name}</span>
+                      <span className="ml-auto rounded-full bg-sky-700/50 px-2 py-0.5 text-xs font-bold text-sky-300">
+                        {needed.length} needed
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {needed.map(({ slot, needsA, needsB }) => {
+                        const tag =
+                          needsA && needsB
+                            ? "both"
+                            : needsA
+                              ? state.albums["A"].name
+                              : state.albums["B"].name;
+                        return (
+                          <span
+                            key={slot}
+                            className="flex items-center gap-1 rounded bg-sky-600/20 px-2 py-1 text-xs font-semibold text-sky-300 tabular-nums"
+                          >
+                            {sec.code}{slot}
+                            <span className="opacity-60">·{tag}</span>
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
