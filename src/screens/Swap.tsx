@@ -74,15 +74,19 @@ export default function Swap() {
 
   const shareMessage = useMemo(() => {
     if (!hasData) return "";
-    const isMissing = (code: string, slot: string) =>
-      shareAlbum === "both"
-        ? !isOwned("A", code, slot) || !isOwned("B", code, slot)
-        : !isOwned(shareAlbum, code, slot);
     const groups = state.sections
-      .map((sec) => ({
-        sec,
-        missing: sec.slots.filter((slot) => isMissing(sec.code, slot)),
-      }))
+      .map((sec) => {
+        const slots: string[] = [];
+        for (const slot of sec.slots) {
+          if (shareAlbum === "both") {
+            if (!isOwned("A", sec.code, slot)) slots.push(slot);
+            if (!isOwned("B", sec.code, slot)) slots.push(slot);
+          } else {
+            if (!isOwned(shareAlbum, sec.code, slot)) slots.push(slot);
+          }
+        }
+        return { sec, missing: slots };
+      })
       .filter((g) => g.missing.length > 0);
     const lines = groups.map(({ sec, missing }) => `${sec.code} ${sec.flag}: ${missing.join(", ")}`);
     return ["Figurinhas Faltantes", "--------------------", ...lines].join("\n");
@@ -125,6 +129,26 @@ export default function Swap() {
   }, [offerText, state.sections, state.duplicates, hasData]);
 
   const totalCanOffer = offerResults?.reduce((n, g) => n + g.canOffer.length, 0) ?? 0;
+
+  const sparesMessage = useMemo(() => {
+    if (!hasData) return "";
+    const groups = state.sections
+      .map((sec) => ({
+        sec,
+        slots: sec.slots.filter((slot) => (state.duplicates[stickerKey(sec.code, slot)] ?? 0) > 0),
+      }))
+      .filter((g) => g.slots.length > 0);
+    const lines = groups.map(({ sec, slots }) => `${sec.code} ${sec.flag}: ${slots.join(", ")}`);
+    return ["Figurinhas Repetidas", "--------------------", ...lines].join("\n");
+  }, [state.sections, state.duplicates, hasData]);
+
+  const [copiedSpares, setCopiedSpares] = useState(false);
+  function copySpares() {
+    navigator.clipboard.writeText(sparesMessage).then(() => {
+      setCopiedSpares(true);
+      setTimeout(() => setCopiedSpares(false), 2000);
+    });
+  }
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -273,6 +297,17 @@ export default function Swap() {
       {/* ── Can I offer? ── */}
       {mode === "offer" && (
         <div className="flex flex-col gap-3">
+          <button
+            onClick={copySpares}
+            className={
+              "rounded-xl px-4 py-3 font-bold transition " +
+              (copiedSpares
+                ? "bg-emerald-700 text-emerald-200"
+                : "bg-sky-600 text-white active:bg-sky-500")
+            }
+          >
+            {copiedSpares ? "Copied!" : "Copy my spares list"}
+          </button>
           <textarea
             value={offerText}
             onChange={(e) => setOfferText(e.target.value)}
