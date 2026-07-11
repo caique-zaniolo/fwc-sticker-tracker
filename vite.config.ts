@@ -12,6 +12,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+      },
       includeAssets: ["favicon.svg"],
       manifest: {
         name: "FWC Sticker Tracker",
