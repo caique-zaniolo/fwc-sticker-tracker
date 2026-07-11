@@ -13,6 +13,14 @@ import { TEMPLATE_CSV } from "../lib/seed";
 import { openPrintView } from "../lib/printMissing";
 import { openDupesPrintView } from "../lib/printDupes";
 
+function todayStamp(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function download(filename: string, text: string, mime = "text/plain") {
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -249,7 +257,11 @@ export default function Settings() {
           </button>
           <button
             onClick={() =>
-              download("fwc-tracker-backup.json", exportStateJson(state), "application/json")
+              download(
+                `fwc-tracker-backup-${todayStamp()}.json`,
+                exportStateJson(state),
+                "application/json",
+              )
             }
             className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
           >

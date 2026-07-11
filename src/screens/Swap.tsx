@@ -38,21 +38,28 @@ export default function Swap() {
 
   const current: Sticker | null = picked ?? exact;
 
-  const countryNeeds = useMemo(() => {
-    if (!hasData || picked || mode !== "lookup") return null;
+  const matchedSections = useMemo(() => {
+    if (!hasData || picked || mode !== "lookup") return [];
     const { alpha, num } = splitLabel(query);
-    if (!alpha || num) return null;
-    const sec = state.sections.find((s) => s.code.toLowerCase() === alpha);
-    if (!sec) return null;
-    const items = sec.slots
-      .map((slot) => ({
-        slot,
-        needsA: !isOwned("A", sec.code, slot),
-        needsB: !isOwned("B", sec.code, slot),
-      }))
-      .filter((x) => x.needsA || x.needsB);
-    return { sec, items };
+    if (num) return [];
+    return state.sections
+      .filter((sec) => !alpha || sec.code.toLowerCase().startsWith(alpha))
+      .map((sec) => {
+        const items = sec.slots
+          .map((slot) => ({
+            slot,
+            needsA: !isOwned("A", sec.code, slot),
+            needsB: !isOwned("B", sec.code, slot),
+          }))
+          .filter((x) => x.needsA || x.needsB);
+        return { sec, items };
+      });
   }, [query, state.sections, hasData, picked, isOwned, mode]);
+
+  const countryNeedsList = useMemo(() => {
+    const { alpha } = splitLabel(query);
+    return alpha ? matchedSections : matchedSections.filter((g) => g.items.length > 0);
+  }, [matchedSections, query]);
 
   function choose(s: Sticker) {
     setPicked(s);
@@ -253,16 +260,21 @@ export default function Swap() {
             )}
           </div>
 
-          {!current && countryNeeds && (
-            <CountryNeedsPanel
-              sec={countryNeeds.sec}
-              items={countryNeeds.items}
-              albumNames={{ A: state.albums.A.name, B: state.albums.B.name }}
-              onChoose={choose}
-            />
+          {!current && countryNeedsList.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {countryNeedsList.map(({ sec, items }) => (
+                <CountryNeedsPanel
+                  key={sec.code}
+                  sec={sec}
+                  items={items}
+                  albumNames={{ A: state.albums.A.name, B: state.albums.B.name }}
+                  onChoose={choose}
+                />
+              ))}
+            </div>
           )}
 
-          {!current && !countryNeeds && suggestions.length > 0 && (
+          {!current && countryNeedsList.length === 0 && suggestions.length > 0 && (
             <ul className="flex flex-col gap-1">
               {suggestions.map((s) => (
                 <li key={stickerKey(s.code, s.slot)}>
@@ -286,7 +298,10 @@ export default function Swap() {
             <StickerCard sticker={current} neededBy={neededBy} onClaim={claim} onNext={next} />
           )}
 
-          {query.trim() !== "" && !current && !countryNeeds && suggestions.length === 0 && (
+          {query.trim() !== "" &&
+            !current &&
+            countryNeedsList.length === 0 &&
+            suggestions.length === 0 && (
             <p className="rounded-lg bg-slate-800/60 p-4 text-center text-slate-400">
               No sticker matches &ldquo;{query}&rdquo;.
             </p>
