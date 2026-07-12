@@ -10,6 +10,19 @@ body,
   height: 100%;
 }
 
+/* Standalone (home-screen) PWAs have no browser toolbar reserving space at
+   the bottom, so `height: 100%` (resolved against the old static viewport)
+   leaves a blank gap there. Dynamic viewport units fix that — but only
+   switch to them in standalone mode, since 100% already renders correctly
+   in a normal browser tab. */
+@media (display-mode: standalone) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
 body {
   margin: 0;
   background: #0f172a;
