@@ -215,7 +215,9 @@ export default function Duplicates() {
                       if (e.key === "Enter") submitInlineAdd(sec.slots, sec.code);
                       if (e.key === "Escape") setActiveAdd(null);
                     }}
-                    placeholder="8"
+                    placeholder="1"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-2 text-center text-base outline-none focus:border-sky-500"
                   />
                   <button

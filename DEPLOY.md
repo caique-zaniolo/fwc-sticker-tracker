@@ -67,6 +67,6 @@ To update later: edit files, `git commit`, `git push` — it redeploys automatic
 
 ## Updating your sticker data later
 
-Edit `data/arthur.csv`, `data/bernardo.csv`, `data/duplicates.csv` and rebuild/redeploy to
-refresh the bundled snapshot — or just use the in-app **Data** tab to import a new CSV any
+Edit the CSV files under `data/` (one per album, plus `duplicates.csv`) and rebuild/redeploy
+to refresh the bundled snapshot — or just use the in-app **Data** tab to import a new CSV any
 time (your in-app changes are saved in the browser regardless).

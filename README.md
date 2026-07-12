@@ -1,17 +1,23 @@
 # FWC Sticker Tracker
 
-A mobile-first, offline PWA for tracking two FIFA World Cup sticker albums (Arthur &
-Bernardo) and speeding up in-person swapping. All data lives in your browser
-(`localStorage`) — no backend, no accounts, works with no signal.
+A mobile-first, offline PWA for tracking two FIFA World Cup sticker albums and speeding up
+in-person swapping. All data lives in your browser (`localStorage`) — no backend, no
+accounts, works with no signal. Each album can be renamed from the Data tab (e.g. to a
+person's name).
 
 ## Tabs
 
-- **Swap** — type the sticker label exactly as printed (`MEX8`, `FWC00`). Instantly shows
-  whether each album NEEDS it, with one-tap "Mark have". Built for going through a pile fast.
-- **Albums** — spreadsheet-style grid per album (toggle Arthur/Bernardo). Tap any sticker
+- **Albums** — spreadsheet-style grid per album (toggle between the two). Tap any sticker
   to flip have/missing. "Only missing" filter.
-- **Missing** — scannable list of everything still needed per album.
-- **Data** — load bundled albums, import/export CSV, full JSON backup/restore, rename/reset.
+- **Swap** — four modes for trading in person or over chat:
+  - *Look up* — browse every country's still-needed stickers, or type a label (`MEX8`,
+    `FWC00`) to jump straight to it and mark it have with one tap.
+  - *Share* — copy your missing list to send to someone.
+  - *Can offer* — paste someone else's missing list to see what you have spare to offer them.
+  - *Their spares* — paste someone else's spares list to see what you can request from them.
+- **Spares** — track and manage duplicate stickers per album.
+- **Data** — load the blank template, import/export CSV per album, import/export a shared
+  duplicates list, full JSON backup/restore, rename/reset albums.
 
 ## CSV format
 
@@ -46,6 +52,6 @@ On your phone, open the deployed URL and "Add to Home Screen" to install it as a
 
 ## Updating album data
 
-Edit `data/arthur.csv` / `data/bernardo.csv` and rebuild to refresh the bundled snapshot,
-or just import a new CSV from the **Data** tab at any time. Your in-app edits override the
-bundle until you re-import.
+Use the **Data** tab in-app to import a CSV per album at any time, or edit the CSV files
+under `data/` and rebuild to refresh the bundled snapshot. In-app edits override the bundle
+until you re-import.
