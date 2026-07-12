@@ -218,19 +218,48 @@ export default function Settings() {
         />
       </section>
 
+      {/* Back up */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
+        <h2 className="mb-3 text-base font-bold">Backup</h2>
+        <p className="mb-3 text-sm text-slate-400">
+          Save your stickers from both albums as a backup file (JSON format). You can use this file to restore your stickers on any device if you lose your data.
+        </p>
+        <p className="mb-3 text-sm text-slate-500">
+          Filename: fwc-tracker-backup-{todayStamp()}.json
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() =>
+              download(
+                `fwc-tracker-backup-${todayStamp()}.json`,
+                exportStateJson(state),
+                "application/json",
+              )
+            }
+            className="w-full rounded-lg bg-blue-600 py-2.5 mt-2 font-semibold text-white active:bg-blue-300"
+          >
+            Export full backup (JSON)
+          </button>
+          <label className="rounded-lg bg-blue-500 py-2 text-center text-sm mt-2 font-semibold active:bg-blue-300">
+            Restore JSON backup
+            <input type="file" accept=".json,application/json" onChange={onJsonFile} className="hidden" />
+          </label>
+        </div>
+      </section>
+
       {/* Export */}
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
-        <h2 className="mb-3 text-base font-bold">Backup / export</h2>
+        <h2 className="mb-3 text-base font-bold">Export</h2>
         <div className="flex flex-col gap-2">
           <button
             onClick={() => openPrintView(state)}
-            className="rounded-lg bg-slate-600 py-2 text-sm font-semibold active:bg-slate-500"
+            className="rounded-lg bg-slate-600 py-2 text-sm mt-2 font-semibold active:bg-slate-500"
           >
             Print missing stickers (PDF)
           </button>
           <button
             onClick={() => openDupesPrintView(state)}
-            className="rounded-lg bg-slate-600 py-2 text-sm font-semibold active:bg-slate-500"
+            className="rounded-lg bg-slate-600 py-2 text-sm mt-2 font-semibold active:bg-slate-500"
           >
             Print duplicates list (PDF)
           </button>
@@ -244,34 +273,18 @@ export default function Settings() {
                   "text/csv",
                 )
               }
-              className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
+              className="rounded-lg bg-slate-700 py-2 text-sm mt-2 font-semibold active:bg-slate-600"
             >
               Export {state.albums[id].name} CSV
             </button>
           ))}
           <button
             onClick={() => download("duplicates.csv", exportDuplicatesCsv(state), "text/csv")}
-            className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
+            className="rounded-lg bg-slate-700 py-2 text-sm mt-2 font-semibold active:bg-slate-600"
           >
             Export duplicates CSV
           </button>
-          <button
-            onClick={() =>
-              download(
-                `fwc-tracker-backup-${todayStamp()}.json`,
-                exportStateJson(state),
-                "application/json",
-              )
-            }
-            className="rounded-lg bg-slate-700 py-2 text-sm font-semibold active:bg-slate-600"
-          >
-            Export full backup (JSON)
-          </button>
-          <label className="rounded-lg bg-slate-700 py-2 text-center text-sm font-semibold active:bg-slate-600">
-            Restore JSON backup
-            <input type="file" accept=".json,application/json" onChange={onJsonFile} className="hidden" />
-          </label>
-        </div>
+          </div>
       </section>
 
       {/* Reset albums */}
@@ -284,7 +297,7 @@ export default function Settings() {
               onClick={() => {
                 if (confirm(`Clear all sticker data for ${state.albums[id].name}?`)) resetAlbum(id);
               }}
-              className="rounded-lg bg-red-600/80 py-2 text-sm font-semibold active:bg-red-600"
+              className="rounded-lg bg-red-600/80 py-2 text-sm mt-2 font-semibold active:bg-red-600"
             >
               Reset {state.albums[id].name}
             </button>
