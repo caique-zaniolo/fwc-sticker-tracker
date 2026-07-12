@@ -140,6 +140,35 @@ export default function Settings() {
         </button>
       </section>
 
+      {/* Back up */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
+        <h2 className="mb-3 text-base font-bold">Backup</h2>
+        <p className="mb-3 text-sm text-slate-400">
+          Save your stickers from both albums as a backup file (JSON format). You can use this file to restore your stickers on any device if you lose your data.
+        </p>
+        <p className="mb-3 text-sm text-slate-500">
+          Filename: fwc-tracker-backup-{todayStamp()}.json
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() =>
+              download(
+                `fwc-tracker-backup-${todayStamp()}.json`,
+                exportStateJson(state),
+                "application/json",
+              )
+            }
+            className="w-full rounded-lg bg-blue-600 py-2.5 mt-2 font-semibold text-white active:bg-blue-300"
+          >
+            Export full backup (JSON)
+          </button>
+          <label className="rounded-lg bg-blue-500 py-2 text-center text-sm mt-2 font-semibold active:bg-blue-300">
+            Restore JSON backup
+            <input type="file" accept=".json,application/json" onChange={onJsonFile} className="hidden" />
+          </label>
+        </div>
+      </section>
+      
       {/* Import album CSV */}
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
         <h2 className="mb-3 text-base font-bold">Import album CSV</h2>
@@ -151,7 +180,7 @@ export default function Settings() {
               onClick={() => setTarget(id)}
               className={
                 "rounded-lg py-2 text-sm font-semibold " +
-                (target === id ? "bg-emerald-600 text-white" : "text-slate-300")
+                (target === id ? "bg-emerald-900 text-white" : "text-slate-300")
               }
             >
               Into {state.albums[id].name}
@@ -164,7 +193,7 @@ export default function Settings() {
           type="file"
           accept=".csv,text/csv"
           onChange={onFile}
-          className="mb-3 block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-white"
+          className="mb-3 block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white"
         />
 
         <textarea
@@ -214,39 +243,10 @@ export default function Settings() {
           type="file"
           accept=".csv,text/csv"
           onChange={onDuplicatesFile}
-          className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-white"
+          className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white"
         />
       </section>
-
-      {/* Back up */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
-        <h2 className="mb-3 text-base font-bold">Backup</h2>
-        <p className="mb-3 text-sm text-slate-400">
-          Save your stickers from both albums as a backup file (JSON format). You can use this file to restore your stickers on any device if you lose your data.
-        </p>
-        <p className="mb-3 text-sm text-slate-500">
-          Filename: fwc-tracker-backup-{todayStamp()}.json
-        </p>
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={() =>
-              download(
-                `fwc-tracker-backup-${todayStamp()}.json`,
-                exportStateJson(state),
-                "application/json",
-              )
-            }
-            className="w-full rounded-lg bg-blue-600 py-2.5 mt-2 font-semibold text-white active:bg-blue-300"
-          >
-            Export full backup (JSON)
-          </button>
-          <label className="rounded-lg bg-blue-500 py-2 text-center text-sm mt-2 font-semibold active:bg-blue-300">
-            Restore JSON backup
-            <input type="file" accept=".json,application/json" onChange={onJsonFile} className="hidden" />
-          </label>
-        </div>
-      </section>
-
+      
       {/* Export */}
       <section className="rounded-2xl border border-slate-800 bg-slate-800/50 p-4">
         <h2 className="mb-3 text-base font-bold">Export</h2>

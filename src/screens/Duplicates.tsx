@@ -248,7 +248,7 @@ export default function Duplicates() {
                 return (
                   <div
                     key={slot}
-                    className="flex items-center gap-2 rounded-lg bg-slate-900 px-2 py-1.5"
+                    className="flex items-center gap-2 rounded-lg bg-slate-900 px-2 py-1.5 min-w-[185px]"
                   >
                     <button
                       onClick={() => adjustDuplicate(key, -1)}
@@ -257,7 +257,7 @@ export default function Duplicates() {
                     >
                       −
                     </button>
-                    <span className="min-w-12 text-center text-sm font-bold tabular-nums">
+                    <span className="min-w-12 flex-1 text-left text-sm font-bold tabular-nums">
                       {sec.code}
                       {slot}
                       {n > 1 && <span className="ml-1 text-sky-400">×{n}</span>}
