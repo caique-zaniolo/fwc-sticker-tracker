@@ -6,6 +6,7 @@ import {
   exportAlbumCsv,
   exportStateJson,
   parseDuplicatesCsv,
+  parseSparesMessage,
   exportDuplicatesCsv,
   type ParsedAlbum,
 } from "../lib/csv";
@@ -61,6 +62,19 @@ export default function Settings() {
       }
     };
     reader.readAsText(file);
+  }
+
+  const [sparesText, setSparesText] = useState("");
+
+  function importSparesText() {
+    try {
+      const parsed = parseSparesMessage(sparesText, state.sections);
+      setDuplicates(parsed.dupes);
+      alert(`Imported ${parsed.total} spares (${parsed.distinct} distinct stickers).`);
+      setSparesText("");
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "That spares text could not be read.");
+    }
   }
 
   const [target, setTarget] = useState<AlbumId>("A");
@@ -243,8 +257,23 @@ export default function Settings() {
           type="file"
           accept=".csv,text/csv"
           onChange={onDuplicatesFile}
-          className="block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white"
+          className="mb-3 block w-full text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-2 file:text-white"
         />
+
+        <textarea
+          value={sparesText}
+          onChange={(e) => setSparesText(e.target.value)}
+          placeholder={"...or paste a spares message here\n\nFigurinhas Repetidas\n--------------------\nMEX 🇲🇽: 2, 8, 12"}
+          rows={4}
+          className="w-full rounded-lg border border-slate-700 bg-slate-900 p-2 font-mono text-xs outline-none focus:border-sky-500"
+        />
+        <button
+          onClick={importSparesText}
+          disabled={!sparesText.trim()}
+          className="mt-2 w-full rounded-lg bg-slate-700 py-2 text-sm font-semibold disabled:opacity-40"
+        >
+          Import pasted spares
+        </button>
       </section>
       
       {/* Export */}

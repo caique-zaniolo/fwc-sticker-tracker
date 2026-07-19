@@ -173,6 +173,47 @@ export function parseDuplicatesCsv(text: string): ParsedDuplicates {
   return { dupes, total, distinct };
 }
 
+export type ParsedSparesMessage = ParsedDuplicates;
+
+/**
+ * Parse the freeform "spares" share message (the same text the Swap tab's
+ * "Copy my spares list" produces) as an alternative to the CSV grid:
+ *
+ *   Figurinhas Repetidas
+ *   --------------------
+ *   MEX 🇲🇽: 2, 8, 12
+ *   FWC 🏆: 00, 11, 13
+ *
+ * Only lines shaped like "CODE <anything>: slot, slot, ..." are read (the
+ * title/divider lines and the flag are ignored); each listed slot counts as
+ * one spare, and a slot repeated on the same line adds another.
+ */
+export function parseSparesMessage(text: string, sections: Section[]): ParsedSparesMessage {
+  const dupes: Record<StickerKey, number> = {};
+  let total = 0;
+  let distinct = 0;
+
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const m = line.match(/^([A-Z]{2,4})\b[^:]*:\s*(.+)$/);
+    if (!m) continue;
+    const sec = sections.find((s) => s.code === m[1]);
+    if (!sec) continue;
+    for (const token of m[2].split(",").map((t) => t.trim()).filter(Boolean)) {
+      const realSlot = sec.slots.find((s) => canonSlot(s) === canonSlot(token));
+      if (!realSlot) continue;
+      const key = stickerKey(sec.code, realSlot);
+      if (dupes[key] === undefined) distinct++;
+      dupes[key] = (dupes[key] ?? 0) + 1;
+      total++;
+    }
+  }
+
+  if (distinct === 0) throw new Error("No recognizable spares found in that text.");
+  return { dupes, total, distinct };
+}
+
 /** Export the shared duplicates list back to the same wide-grid CSV shape. */
 export function exportDuplicatesCsv(state: AppState): string {
   const { sections, duplicates } = state;
