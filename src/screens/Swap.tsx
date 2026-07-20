@@ -408,12 +408,15 @@ export default function Swap() {
                         <button
                           key={slot}
                           onClick={() => adjustDuplicate(stickerKey(sec.code, slot), -1)}
-                          className="rounded bg-emerald-600/25 px-2 py-1 text-xs font-semibold text-emerald-300 tabular-nums active:bg-emerald-600/40"
+                          className="group flex items-center gap-1.5 rounded bg-emerald-600/25 py-1 pl-2 pr-1 text-xs font-semibold text-emerald-300 tabular-nums active:bg-emerald-600/40"
                           aria-label={`remove ${sec.code}${slot} from spares`}
                           title="Remove from spares"
                         >
                           {sec.code}{slot}
-                          {count > 1 && <span className="ml-1 opacity-70">×{count}</span>}
+                          {count > 1 && <span className="opacity-70">×{count}</span>}
+                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700/60 text-[10px] leading-none group-active:bg-emerald-700">
+                            −
+                          </span>
                         </button>
                       ))}
                       {cantOffer.map((slot) => (
