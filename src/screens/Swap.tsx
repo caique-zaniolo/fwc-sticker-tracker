@@ -422,7 +422,7 @@ export default function Swap() {
                       {cantOffer.map((slot) => (
                         <span
                           key={slot}
-                          className="rounded bg-slate-700/50 px-2 py-1 text-xs font-semibold text-slate-500 tabular-nums"
+                          className="flex min-h-11 items-center rounded-lg bg-slate-700/50 px-3 text-sm font-semibold text-slate-500 tabular-nums"
                         >
                           {sec.code}{slot}
                         </span>
