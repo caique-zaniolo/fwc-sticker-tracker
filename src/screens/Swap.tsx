@@ -414,7 +414,7 @@ export default function Swap() {
                         >
                           {sec.code}{slot}
                           {count > 1 && <span className="opacity-70">×{count}</span>}
-                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700/60 text-base leading-none group-active:bg-emerald-700">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600/80 text-base leading-none text-white group-active:bg-red-500">
                             −
                           </span>
                         </button>
