@@ -7,7 +7,7 @@ import { flagFor, nameFor } from "../data/flags";
 type Mode = "lookup" | "share" | "offer" | "receive";
 
 export default function Swap() {
-  const { state, hasData, isOwned, setOwned } = useStore();
+  const { state, hasData, isOwned, setOwned, adjustDuplicate } = useStore();
   const [mode, setMode] = useState<Mode>("lookup");
 
   // Lookup state
@@ -405,13 +405,16 @@ export default function Swap() {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {canOffer.map(({ slot, count }) => (
-                        <span
+                        <button
                           key={slot}
-                          className="rounded bg-emerald-600/25 px-2 py-1 text-xs font-semibold text-emerald-300 tabular-nums"
+                          onClick={() => adjustDuplicate(stickerKey(sec.code, slot), -1)}
+                          className="rounded bg-emerald-600/25 px-2 py-1 text-xs font-semibold text-emerald-300 tabular-nums active:bg-emerald-600/40"
+                          aria-label={`remove ${sec.code}${slot} from spares`}
+                          title="Remove from spares"
                         >
                           {sec.code}{slot}
                           {count > 1 && <span className="ml-1 opacity-70">×{count}</span>}
-                        </span>
+                        </button>
                       ))}
                       {cantOffer.map((slot) => (
                         <span
