@@ -403,18 +403,18 @@ export default function Swap() {
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {canOffer.map(({ slot, count }) => (
                         <button
                           key={slot}
                           onClick={() => adjustDuplicate(stickerKey(sec.code, slot), -1)}
-                          className="group flex items-center gap-1.5 rounded bg-emerald-600/25 py-1 pl-2 pr-1 text-xs font-semibold text-emerald-300 tabular-nums active:bg-emerald-600/40"
+                          className="group flex min-h-11 items-center gap-2 rounded-lg bg-emerald-600/25 py-2 pl-3 pr-2 text-sm font-semibold text-emerald-300 tabular-nums active:bg-emerald-600/40"
                           aria-label={`remove ${sec.code}${slot} from spares`}
                           title="Remove from spares"
                         >
                           {sec.code}{slot}
                           {count > 1 && <span className="opacity-70">×{count}</span>}
-                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-700/60 text-[10px] leading-none group-active:bg-emerald-700">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700/60 text-base leading-none group-active:bg-emerald-700">
                             −
                           </span>
                         </button>
